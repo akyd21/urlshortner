@@ -14,6 +14,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
 @Configuration
 public class SecurityConfig {
 
@@ -40,9 +41,13 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
+        // configuration.setAllowedOrigins(List.of(
+        //         "http://localhost:5173",
+        //         "https://urlshortner-1-utkg.onrender.com/"
+        // ));
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "https://urlshortner-1-utkg.onrender.com/"
+                "http://localhost:5173" , 
+                "https://urlshortner-5vvi.onrender.com"
         ));
 
         configuration.setAllowedMethods(
