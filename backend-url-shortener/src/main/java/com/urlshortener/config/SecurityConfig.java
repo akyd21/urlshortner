@@ -42,7 +42,7 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://urlshortner-5vvi.onrender.com"
+                "https://urlshortner-1-utkg.onrender.com/"
         ));
 
         configuration.setAllowedMethods(
