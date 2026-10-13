@@ -2,7 +2,9 @@ import { useState } from 'react';
 import ResultCard from './ResultCard';
 import '../styles/UrlShortener.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_URL || '');
 
 const UrlShortenerForm = () => {
   const [url, setUrl] = useState('');
@@ -37,7 +39,7 @@ const UrlShortenerForm = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/shorten`, {
+      const response = await fetch(`${API_BASE_URL}/api/shorten`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
