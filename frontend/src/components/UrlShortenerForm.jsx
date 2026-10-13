@@ -12,7 +12,7 @@ const UrlShortenerForm = () => {
     try {
       new URL(string);
       return true;
-    } catch (_) {
+    } catch {
       return false;
     }
   };
@@ -49,7 +49,7 @@ const UrlShortenerForm = () => {
 
       const data = await response.json();
       setShortenedUrl(data.shortUrl);
-    } catch (err) {
+    } catch {
       setError('An error occurred while shortening the URL. Please try again.');
     } finally {
       setIsLoading(false);
