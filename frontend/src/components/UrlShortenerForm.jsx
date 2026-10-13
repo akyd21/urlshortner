@@ -1,22 +1,66 @@
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ResultCard from './ResultCard';
 import '../styles/UrlShortener.css';
 
-// Configure the backend URL.
-// Local development uses the Vite proxy or relative URL.
-// Production uses VITE_API_URL from frontend/.env.
 const API_BASE_URL = (
   import.meta.env.DEV
     ? ''
     : (import.meta.env.VITE_API_URL || '')
 ).replace(/\/+$/, '');
 
-const UrlShortenerForm = () => {
+const UrlShortenerForm = ({ token }) => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [shortenedUrl, setShortenedUrl] = useState('');
+  const [alias, setAlias] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [bulkUrls, setBulkUrls] = useState('');
+  const [bulkResults, setBulkResults] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [links, setLinks] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [selectedLink, setSelectedLink] = useState('');
+
+  const loadLinks = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/links`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error('Could not load your link history.');
+      }
+      setLinks(await response.json());
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [token]);
+
+  const loadStats = async (shortCode) => {
+    const response = await fetch(`${API_BASE_URL}/api/links/${shortCode}/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error('Could not load analytics for this link.');
+    }
+    const latestStats = await response.json();
+    setSelectedLink(shortCode);
+    setStats(latestStats);
+    await loadLinks();
+  };
+
+  useEffect(() => {
+    loadLinks();
+  }, [loadLinks]);
+
+  useEffect(() => {
+    window.addEventListener('focus', loadLinks);
+    return () => window.removeEventListener('focus', loadLinks);
+  }, [loadLinks]);
 
   const validateUrl = (value) => {
     try {
@@ -35,6 +79,7 @@ const UrlShortenerForm = () => {
 
     setError('');
     setShortenedUrl('');
+    setBulkResults([]);
 
     const trimmedUrl = url.trim();
 
@@ -57,8 +102,13 @@ const UrlShortenerForm = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ url: trimmedUrl }),
+          body: JSON.stringify({
+            url: trimmedUrl,
+            alias: alias.trim() || null,
+            expiresAt: expiresAt || null,
+          }),
         }
       );
 
@@ -83,6 +133,7 @@ const UrlShortenerForm = () => {
       }
 
       setShortenedUrl(data.shortUrl);
+      await loadLinks();
     } catch (err) {
       console.error('Error shortening URL:', err);
 
@@ -100,11 +151,47 @@ const UrlShortenerForm = () => {
     }
   };
 
+  const handleBulkSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setBulkResults([]);
+    const urls = bulkUrls.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    if (!urls.length) {
+      setError('Enter at least one URL for bulk shortening.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shorten/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(urls.map((value) => ({ url: value }))),
+      });
+      if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+      setBulkResults(await response.json());
+      await loadLinks();
+    } catch (err) {
+      setError(err.message || 'Bulk shortening failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="glass-card">
+    <div className="dashboard-grid">
+      <section className="glass-card quick-card">
+        <div className="card-heading">
+          <div>
+            <span className="section-kicker">QUICK SHORTEN</span>
+            <h2>Create a short link</h2>
+          </div>
+          <span className="card-spark">✦</span>
+        </div>
       <form onSubmit={handleSubmit} className="url-form">
         <div className="input-group">
+          <label htmlFor="long-url">Long URL</label>
           <input
+            id="long-url"
             type="url"
             value={url}
             onChange={(event) => {
@@ -122,6 +209,30 @@ const UrlShortenerForm = () => {
               {error}
             </span>
           )}
+        </div>
+
+        <div className="advanced-grid">
+          <label className="field-label">
+            Custom alias <span>optional</span>
+            <input
+              value={alias}
+              onChange={(event) => setAlias(event.target.value)}
+              placeholder="e.g. summer-sale"
+              className="url-input"
+              maxLength="32"
+              disabled={isLoading}
+            />
+          </label>
+          <label className="field-label">
+            Expire link <span>optional</span>
+          <input
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(event) => setExpiresAt(event.target.value)}
+            className="url-input"
+            disabled={isLoading}
+          />
+          </label>
         </div>
 
         <button
@@ -143,6 +254,107 @@ const UrlShortenerForm = () => {
       {shortenedUrl && !isLoading && (
         <ResultCard shortUrl={shortenedUrl} />
       )}
+
+      {shortenedUrl && (
+        <div className="feature-actions">
+          <button type="button" onClick={async () => {
+            try {
+              await loadStats(shortenedUrl.split('/').pop());
+            } catch (requestError) {
+              setError(requestError.message);
+            }
+          }}>↗ View analytics</button>
+          <a href={`${API_BASE_URL}/api/links/${shortenedUrl.split('/').pop()}/qr`} target="_blank" rel="noreferrer">▦ Open QR code</a>
+        </div>
+      )}
+      {stats && <div className="stats-panel"><strong>{stats.clickCount} clicks</strong><span>Created {new Date(stats.createdAt).toLocaleString()}</span></div>}
+      </section>
+
+      <form onSubmit={handleBulkSubmit} className="glass-card bulk-form">
+        <div className="card-heading">
+          <div>
+            <span className="section-kicker">BULK MODE</span>
+            <h2>Shorten multiple links</h2>
+          </div>
+          <span className="card-spark">⌁</span>
+        </div>
+        <p className="card-description">Paste one URL per line and get a clean list of shareable links.</p>
+        <textarea
+          value={bulkUrls}
+          onChange={(event) => setBulkUrls(event.target.value)}
+          placeholder="Paste one URL per line"
+          rows="4"
+          disabled={isLoading}
+        />
+        <button type="submit" className="submit-btn secondary-btn" disabled={isLoading}>Shorten all URLs <span>→</span></button>
+      </form>
+      {bulkResults.length > 0 && (
+        <div className="bulk-results glass-card">
+          <span className="section-kicker">YOUR LINKS</span>
+          {bulkResults.map((result) => (
+            <a key={result.shortCode} href={result.shortUrl} target="_blank" rel="noreferrer">
+              {result.shortUrl}
+            </a>
+          ))}
+        </div>
+      )}
+      <section className="glass-card link-history" id="link-history">
+        <div className="card-heading">
+          <div>
+            <span className="section-kicker">YOUR PROFILE</span>
+            <h2>All your links</h2>
+          </div>
+          <span className="history-count">{links.length} total</span>
+        </div>
+        <p className="card-description">Open analytics for any link you have created.</p>
+        {historyLoading ? (
+          <p className="history-empty">Loading your link history...</p>
+        ) : links.length === 0 ? (
+          <p className="history-empty">Your generated links will appear here.</p>
+        ) : (
+          <div className="link-history-list">
+            {links.map((link) => (
+              <article className="history-item" key={link.shortCode}>
+                <div className="history-main">
+                  <a className="history-short-url" href={link.shortUrl} target="_blank" rel="noreferrer">
+                    {link.shortUrl}
+                  </a>
+                  <span className="history-original" title={link.originalUrl}>{link.originalUrl}</span>
+                  <span className="history-meta">
+                    Created {new Date(link.createdAt).toLocaleDateString()} · {link.clickCount} clicks
+                  </span>
+                </div>
+                <div className="history-actions">
+                  <button
+                    type="button"
+                    className="history-analytics-button"
+                    onClick={async () => {
+                      try {
+                        await loadStats(link.shortCode);
+                      } catch (requestError) {
+                        setError(requestError.message);
+                      }
+                    }}
+                  >
+                    View analytics
+                  </button>
+                  <a href={`${API_BASE_URL}/api/links/${link.shortCode}/qr`} target="_blank" rel="noreferrer">
+                    QR
+                  </a>
+                </div>
+                {selectedLink === link.shortCode && stats && (
+                  <div className="history-stats">
+                    <strong>{stats.clickCount} clicks</strong>
+                    <span>Last clicked: {link.lastClickedAt ? new Date(link.lastClickedAt).toLocaleString() : 'Not clicked yet'}</span>
+                    <span>Created: {new Date(stats.createdAt).toLocaleString()}</span>
+                    {stats.expiresAt && <span>Expires: {new Date(stats.expiresAt).toLocaleString()}</span>}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

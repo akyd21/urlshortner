@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,6 +38,16 @@ public class ShortUrl {
     private LocalDateTime createdAt;
 
     private LocalDateTime expiresAt;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private long clickCount = 0;
+
+    private LocalDateTime lastClickedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User owner;
 
     @PrePersist
     protected void onCreate() {

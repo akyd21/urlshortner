@@ -12,6 +12,11 @@
   --glass-border: rgba(255, 255, 255, 0.08);
 }
 
+html,
+body {
+  width: 100%;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -23,6 +28,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-primary);
   min-height: 100vh;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
