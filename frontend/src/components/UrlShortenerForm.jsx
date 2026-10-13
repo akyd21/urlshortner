@@ -2,9 +2,13 @@ import { useState } from 'react';
 import ResultCard from './ResultCard';
 import '../styles/UrlShortener.css';
 
-const API_BASE_URL = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_API_URL || '');
+
+const API_BASE_URL = (
+    import.meta.env.DEV
+        ? ''
+        : (import.meta.env.VITE_API_URL || '')
+).replace(/\/+$/, '');
+
 
 const UrlShortenerForm = () => {
   const [url, setUrl] = useState('');
