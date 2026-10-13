@@ -23,12 +23,7 @@ public class UrlShortenerRestController {
     public ResponseEntity<?> shortenUrl(@Valid @RequestBody ShortenUrlRequest request,
                                         HttpServletRequest httpRequest) {
 
-        String userEmail = null;
-        if (httpRequest.getUserPrincipal() instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken token) {
-            userEmail = token.getPrincipal().getAttribute("email");
-        }
-        
-        ShortUrl shortUrl = urlShortenerService.createShortUrl(request.getUrl(), userEmail);
+        ShortUrl shortUrl = urlShortenerService.createShortUrl(request.getUrl());
         
         // Construct the full short URL dynamically based on the current request
         // Since the backend is running on a port and the frontend is running on another,

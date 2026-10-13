@@ -37,8 +37,6 @@ public class ShortUrl {
 
     private LocalDateTime expiresAt;
 
-    private String userEmail;
-
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

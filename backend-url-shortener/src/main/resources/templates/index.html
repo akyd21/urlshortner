@@ -94,14 +94,6 @@
 
 <div class="container">
     <h1>URL Shortener</h1>
-
-    <div class="auth">
-        <a th:if="${!authenticated}" th:href="@{/oauth2/authorization/google}">Sign in with Google</a>
-        <span th:if="${authenticated}">
-            Signed in as <strong th:text="${username}"></strong>
-            <a th:href="@{/logout}">Sign out</a>
-        </span>
-    </div>
     
     <form th:action="@{/shorten}" th:object="${request}" method="post">
         <div>

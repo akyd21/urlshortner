@@ -17,7 +17,7 @@ public class UrlShortenerService {
     private final ShortCodeGenerator shortCodeGenerator;
 
     @Transactional
-    public ShortUrl createShortUrl(String originalUrl, String userEmail) {
+    public ShortUrl createShortUrl(String originalUrl) {
         Optional<ShortUrl> existingUrl = shortUrlRepository.findByOriginalUrl(originalUrl);
         if (existingUrl.isPresent()) {
             return existingUrl.get();
@@ -38,7 +38,6 @@ public class UrlShortenerService {
         ShortUrl newUrl = ShortUrl.builder()
                 .originalUrl(originalUrl)
                 .shortCode(shortCode)
-                .userEmail(userEmail)
                 .build();
 
         return shortUrlRepository.save(newUrl);

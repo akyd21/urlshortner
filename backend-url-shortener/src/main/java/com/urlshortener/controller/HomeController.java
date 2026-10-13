@@ -26,9 +26,8 @@ public class HomeController {
     private final UrlShortenerService urlShortenerService;
 
     @GetMapping("/")
-    public String showForm(Model model, HttpServletRequest httpRequest) {
+    public String showForm(Model model) {
         model.addAttribute("request", new ShortenUrlRequest());
-        addAuthenticationAttributes(model, httpRequest);
         return "index";
     }
 
@@ -37,17 +36,11 @@ public class HomeController {
                              BindingResult bindingResult,
                              Model model,
                              HttpServletRequest httpRequest) {
-        addAuthenticationAttributes(model, httpRequest);
         if (bindingResult.hasErrors()) {
             return "index";
         }
 
-        String userEmail = null;
-        if (httpRequest.getUserPrincipal() instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken token) {
-            userEmail = token.getPrincipal().getAttribute("email");
-        }
-        
-        ShortUrl shortUrl = urlShortenerService.createShortUrl(request.getUrl(), userEmail);
+        ShortUrl shortUrl = urlShortenerService.createShortUrl(request.getUrl());
         
         // Construct the full short URL dynamically based on the current request
         String appUrl = httpRequest.getRequestURL().toString().replace(httpRequest.getRequestURI(), "");
@@ -56,21 +49,6 @@ public class HomeController {
         model.addAttribute("shortUrl", fullShortUrl);
         model.addAttribute("originalUrl", shortUrl.getOriginalUrl());
         return "index";
-    }
-
-    private void addAuthenticationAttributes(Model model, HttpServletRequest httpRequest) {
-        if (httpRequest.getUserPrincipal() == null) {
-            model.addAttribute("authenticated", false);
-            return;
-        }
-
-        model.addAttribute("authenticated", true);
-        if (httpRequest.getUserPrincipal() instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken token) {
-            String name = token.getPrincipal().getAttribute("name");
-            model.addAttribute("username", name != null ? name : token.getName());
-        } else {
-            model.addAttribute("username", httpRequest.getUserPrincipal().getName());
-        }
     }
 
     @GetMapping("/{shortCode}")
