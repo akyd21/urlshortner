@@ -1,7 +1,5 @@
-@"
 .vscode/
 .env
 .env.*
 !.env.example
 target/
-"@ | Set-Content .gitignore
