@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>URL Shortener</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input[type="url"], input[type="text"] {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: #d9534f;
+            font-size: 14px;
+            margin-top: -10px;
+            text-align: left;
+        }
+        .result-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .result-section a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 18px;
+            word-break: break-all;
+        }
+        .result-section a:hover {
+            text-decoration: underline;
+        }
+        .original-url {
+            color: #777;
+            font-size: 14px;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+        .auth {
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .auth a {
+            color: #007bff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>URL Shortener</h1>
+
+    <div class="auth">
+        <a th:if="${!authenticated}" th:href="@{/oauth2/authorization/google}">Sign in with Google</a>
+        <span th:if="${authenticated}">
+            Signed in as <strong th:text="${username}"></strong>
+            <a th:href="@{/logout}">Sign out</a>
+        </span>
+    </div>
+    
+    <form th:action="@{/shorten}" th:object="${request}" method="post">
+        <div>
+            <input type="text" th:field="*{url}" placeholder="Enter a long URL here (e.g., https://example.com)" required />
+            <div class="error" th:if="${#fields.hasErrors('url')}" th:errors="*{url}">URL Error</div>
+        </div>
+        <button type="submit">Shorten URL</button>
+    </form>
+
+    <div class="result-section" th:if="${shortUrl != null}">
+        <p>Your short URL is ready!</p>
+        <a th:href="${shortUrl}" th:text="${shortUrl}" target="_blank"></a>
+        <div class="original-url">
+            Original: <span th:text="${originalUrl}"></span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
