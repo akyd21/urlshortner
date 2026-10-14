@@ -53,6 +53,31 @@ const UrlShortenerForm = ({ token }) => {
     await loadLinks();
   };
 
+  const deleteLink = async (link) => {
+    if (!window.confirm(`Delete ${link.shortUrl}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/links/${encodeURIComponent(link.shortCode)}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      if (!response.ok) {
+        const responseBody = await response.json().catch(() => ({}));
+        throw new Error(responseBody.message || `Request failed with status ${response.status}`);
+      }
+      setLinks((currentLinks) => currentLinks.filter((currentLink) => currentLink.shortCode !== link.shortCode));
+      if (selectedLink === link.shortCode) {
+        setSelectedLink('');
+        setStats(null);
+      }
+    } catch (requestError) {
+      setError(requestError.message || 'Could not delete this link.');
+    }
+  };
+
   useEffect(() => {
     loadLinks();
   }, [loadLinks]);
@@ -107,7 +132,7 @@ const UrlShortenerForm = ({ token }) => {
           body: JSON.stringify({
             url: trimmedUrl,
             alias: alias.trim() || null,
-            expiresAt: expiresAt || null,
+            expiresAt: expiresAt ? (expiresAt.includes("T") ? expiresAt : (expiresAt + "T23:59:59")) : null,
           }),
         }
       );
@@ -224,9 +249,9 @@ const UrlShortenerForm = ({ token }) => {
             />
           </label>
           <label className="field-label">
-            Expire link <span>optional</span>
+            Expire link <span>default: 3 months</span>
           <input
-            type="datetime-local"
+            type="date"
             value={expiresAt}
             onChange={(event) => setExpiresAt(event.target.value)}
             className="url-input"
@@ -264,10 +289,8 @@ const UrlShortenerForm = ({ token }) => {
               setError(requestError.message);
             }
           }}>↗ View analytics</button>
-          <a href={`${API_BASE_URL}/api/links/${shortenedUrl.split('/').pop()}/qr`} target="_blank" rel="noreferrer">▦ Open QR code</a>
         </div>
       )}
-      {stats && <div className="stats-panel"><strong>{stats.clickCount} clicks</strong><span>Created {new Date(stats.createdAt).toLocaleString()}</span></div>}
       </section>
 
       <form onSubmit={handleBulkSubmit} className="glass-card bulk-form">
@@ -306,7 +329,7 @@ const UrlShortenerForm = ({ token }) => {
           </div>
           <span className="history-count">{links.length} total</span>
         </div>
-        <p className="card-description">Open analytics for any link you have created.</p>
+        <p className="card-description">Manage the links you have created.</p>
         {historyLoading ? (
           <p className="history-empty">Loading your link history...</p>
         ) : links.length === 0 ? (
@@ -321,8 +344,14 @@ const UrlShortenerForm = ({ token }) => {
                   </a>
                   <span className="history-original" title={link.originalUrl}>{link.originalUrl}</span>
                   <span className="history-meta">
-                    Created {new Date(link.createdAt).toLocaleDateString()} · {link.clickCount} clicks
+                    Created {new Date(link.createdAt).toLocaleDateString()} · {link.clickCount} clicks · {link.domain}
                   </span>
+                  <div className="history-tags">
+                    <span className={`status-badge status-${(link.status || 'ACTIVE').toLowerCase()}`}>
+                      {link.status || 'ACTIVE'}
+                    </span>
+                    {link.alias && <span className="alias-badge">/{link.alias}</span>}
+                  </div>
                 </div>
                 <div className="history-actions">
                   <button
@@ -338,13 +367,19 @@ const UrlShortenerForm = ({ token }) => {
                   >
                     View analytics
                   </button>
-                  <a href={`${API_BASE_URL}/api/links/${link.shortCode}/qr`} target="_blank" rel="noreferrer">
-                    QR
-                  </a>
+                  <button
+                    type="button"
+                    className="history-delete-button"
+                    onClick={() => deleteLink(link)}
+                  >
+                    Delete
+                  </button>
                 </div>
                 {selectedLink === link.shortCode && stats && (
                   <div className="history-stats">
                     <strong>{stats.clickCount} clicks</strong>
+                    <span>Status: {link.status || stats.status}</span>
+                    <span>Domain: {link.domain || stats.domain}</span>
                     <span>Last clicked: {link.lastClickedAt ? new Date(link.lastClickedAt).toLocaleString() : 'Not clicked yet'}</span>
                     <span>Created: {new Date(stats.createdAt).toLocaleString()}</span>
                     {stats.expiresAt && <span>Expires: {new Date(stats.expiresAt).toLocaleString()}</span>}

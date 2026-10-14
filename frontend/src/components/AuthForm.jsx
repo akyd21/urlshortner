@@ -7,6 +7,7 @@ const API_BASE_URL = (
 
 function AuthForm({ onAuthenticated }) {
   const [mode, setMode] = useState('login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,7 +21,11 @@ function AuthForm({ onAuthenticated }) {
       const response = await fetch(`${API_BASE_URL}/api/auth/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          ...(mode === 'register' ? { name: name.trim() } : {}),
+          email: email.trim(),
+          password,
+        }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -36,15 +41,29 @@ function AuthForm({ onAuthenticated }) {
 
   return (
     <section className="auth-card glass-card">
+      <div className="auth-icon">{mode === 'login' ? '↗' : '✦'}</div>
       <span className="section-kicker">{mode === 'login' ? 'WELCOME BACK' : 'GET STARTED'}</span>
       <h2>{mode === 'login' ? 'Sign in to Linkly' : 'Create your account'}</h2>
       <p className="card-description">
         {mode === 'login'
           ? 'Manage your links and see performance in one place.'
-          : 'Save your links, track clicks, and share QR codes.'}
+          : 'Save your links, track clicks, and share with confidence.'}
       </p>
-      <form onSubmit={submit} className="url-form">
-        <label className="field-label">Email
+      <form onSubmit={submit} className="url-form auth-form">
+        {mode === 'register' && (
+          <label className="field-label">Full name
+            <input
+              className="url-input"
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength="120"
+              autoComplete="name"
+              required
+            />
+          </label>
+        )}
+        <label className="field-label">Email address
           <input className="url-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         </label>
         <label className="field-label">Password <span>8+ characters</span>
@@ -55,9 +74,12 @@ function AuthForm({ onAuthenticated }) {
           {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>
       </form>
-      <button className="text-button" type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>
-        {mode === 'login' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
-      </button>
+      <div className="auth-switch">
+        <span>{mode === 'login' ? 'New to Linkly?' : 'Already using Linkly?'}</span>
+        <button className="text-button" type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>
+        {mode === 'login' ? 'Create an account' : 'Sign in instead'}
+        </button>
+      </div>
     </section>
   );
 }

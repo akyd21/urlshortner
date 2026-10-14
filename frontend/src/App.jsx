@@ -38,26 +38,28 @@ function App() {
         ) : <span className="status-pill"><span className="status-dot" /> Fast & secure</span>}
       </nav>
 
-      <header className="hero">
-        <div className="eyebrow">LINK MANAGEMENT, SIMPLIFIED</div>
-        <h1 className="hero-title">Make every link<br /><span>worth sharing.</span></h1>
+      <header className={`hero ${session ? 'hero-dashboard' : ''}`}>
+        <div className="eyebrow">{session ? 'WORKSPACE' : 'LINK MANAGEMENT, SIMPLIFIED'}</div>
+        <h1 className="hero-title">{session ? <>Your link<br /><span>workspace.</span></> : <>Make every link<br /><span>worth sharing.</span></>}</h1>
         <p className="hero-subtitle">
-          Turn long URLs into clean, memorable links. Add your own alias,
-          set an expiry, and track every click.
+          {session
+            ? 'Create and manage your short links.'
+            : 'Turn long URLs into clean, memorable links. Add your own alias, set an expiry, and track every click.'}
         </p>
+        {!session && <div className="hero-proof"><span>✓ No credit card</span><span>✓ Free to get started</span><span>✓ Built for sharing</span></div>}
       </header>
 
       <main className="workspace">
         {session ? <UrlShortenerForm token={session.token} /> : <AuthForm onAuthenticated={authenticate} />}
       </main>
 
-      <section className="feature-strip" aria-label="Features">
+      {!session && <section className="feature-strip" aria-label="Features">
         <div><span className="feature-icon">✦</span><strong>Instant links</strong><small>Ready in seconds</small></div>
         <div><span className="feature-icon">◈</span><strong>Smart controls</strong><small>Aliases & expiry dates</small></div>
-        <div><span className="feature-icon">↗</span><strong>Built to share</strong><small>Analytics & QR codes</small></div>
-      </section>
+        <div><span className="feature-icon">↗</span><strong>Built to share</strong><small>Analytics included</small></div>
+      </section>}
 
-      <footer className="footer">Simple links for a faster web <span>•</span> Secure account dashboard</footer>
+      {!session && <footer className="footer">Simple links for a faster web <span>•</span> Secure account dashboard</footer>}
     </div>
   );
 }
