@@ -12,11 +12,7 @@ Turn long URLs into clean, shareable short links with **Linkly**. This full-stac
 
 ### Linkly homepage
 
-![Linkly homepage with quick-shortening and bulk-shortening sections](https://raw.githubusercontent.com/akyd21/urlshortner/main/assets/homepage.png)
-
-### My links dashboard and analytics access
-
-![Linkly dashboard showing saved short links and click counts](https://raw.githubusercontent.com/akyd21/urlshortner/main/assets/dashboard.png)
+<img width="947" height="437" alt="image" src="https://github.com/user-attachments/assets/039cddf2-4e4b-4e6b-a42e-db7f8f278391" />
 
 ## Features
 
