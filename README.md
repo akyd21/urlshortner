@@ -18,7 +18,7 @@ Turn long URLs into clean, shareable short links with **Linkly**. This full-stac
 <img width="947" height="500" alt="image" src="https://github.com/user-attachments/assets/fe07be2a-e9f7-4aee-9d3c-bf4df96b366b" />
 
 ## Application workflow 
-<img width="947" height="500" alt="image" src="https://github.com/user-attachments/assets/bdaeb22e-645c-4d01-931a-d430421f60c7" />
+<img width="947" height="600" alt="image" src="https://github.com/user-attachments/assets/bdaeb22e-645c-4d01-931a-d430421f60c7" />
 
 
 ## Features
