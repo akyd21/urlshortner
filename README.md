@@ -14,6 +14,13 @@ Turn long URLs into clean, shareable short links with **Linkly**. This full-stac
 
 <img width="947" height="437" alt="image" src="https://github.com/user-attachments/assets/039cddf2-4e4b-4e6b-a42e-db7f8f278391" />
 
+## DataBase image
+<img width="598" height="371" alt="image" src="https://github.com/user-attachments/assets/fe07be2a-e9f7-4aee-9d3c-bf4df96b366b" />
+
+## Application workflow 
+<img width="665" height="431" alt="image" src="https://github.com/user-attachments/assets/bdaeb22e-645c-4d01-931a-d430421f60c7" />
+
+
 ## Features
 
 - **URL shortening:** Convert long URLs into compact, shareable links.
@@ -22,7 +29,6 @@ Turn long URLs into clean, shareable short links with **Linkly**. This full-stac
 - **User authentication:** Register/sign in and manage links associated with your account.
 - **Link dashboard:** View created links and their click counts.
 - **Click analytics:** Open analytics for individual short links.
-- **QR code option:** Access a QR code for a short link.
 - **Expiry support:** Configure link expiry where enabled.
 - **Redirect handling:** Visiting a short link redirects to its original destination.
 - **Responsive dark UI:** A modern interface with gradient accents.
@@ -38,7 +44,6 @@ Turn long URLs into clean, shareable short links with **Linkly**. This full-stac
 | Authentication | JWT (JSON Web Tokens) |
 | Database | MySQL |
 | Validation | Spring Boot Validation |
-| QR codes | ZXing |
 | Build tools | Maven Wrapper, npm |
 | Deployment | Render |
 
@@ -56,7 +61,6 @@ Spring Boot Backend
       ├── URL creation and short-code generation
       ├── Redirect handling
       ├── Click tracking / link analytics
-      └── QR-code support
       │
       ▼
 MySQL Database
