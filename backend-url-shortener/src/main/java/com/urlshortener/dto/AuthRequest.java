@@ -8,6 +8,9 @@ import lombok.Data;
 @Data
 public class AuthRequest {
 
+    @Size(max = 120)
+    private String name;
+
     @NotBlank
     @Email
     private String email;

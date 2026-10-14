@@ -18,11 +18,17 @@ public class AuthService {
     private final JwtService jwtService;
 
     public AuthResponse register(AuthRequest request) {
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new IllegalArgumentException("Name is required for registration.");
+        }
         String email = normalizedEmail(request.getEmail());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new IllegalArgumentException("An account with this email already exists.");
         }
-        User user = userRepository.save(new User(email, passwordEncoder.encode(request.getPassword())));
+        User user = userRepository.save(new User(
+                request.getName().trim(),
+                email,
+                passwordEncoder.encode(request.getPassword())));
         return new AuthResponse(jwtService.createToken(user.getEmail()), user.getEmail());
     }
 

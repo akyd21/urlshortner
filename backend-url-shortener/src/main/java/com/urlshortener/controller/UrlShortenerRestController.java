@@ -8,18 +8,13 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import java.io.ByteArrayOutputStream;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,14 +38,17 @@ public class UrlShortenerRestController {
                 request.getUrl(), request.getAlias(), request.getExpiresAt(), principal.getName());
 
         String appUrl = httpRequest.getRequestURL().toString().replace(httpRequest.getRequestURI(), "");
-        String fullShortUrl = appUrl + "/" + shortUrl.getShortCode();
+        String fullShortUrl = appUrl + "/" + publicCode(shortUrl);
         
         Map<String, String> response = new HashMap<>();
         response.put("shortUrl", fullShortUrl);
-        response.put("originalUrl", shortUrl.getOriginalUrl());
-        response.put("shortCode", shortUrl.getShortCode());
-        response.put("clickCount", String.valueOf(shortUrl.getClickCount()));
+        response.put("originalUrl", shortUrl.getMapping().getOriginalUrl());
+        response.put("shortCode", publicCode(shortUrl));
+        response.put("clickCount", String.valueOf(clickCount(shortUrl)));
         response.put("expiresAt", shortUrl.getExpiresAt() == null ? "" : shortUrl.getExpiresAt().toString());
+        response.put("status", shortUrl.getStatus());
+        response.put("alias", alias(shortUrl));
+        response.put("domain", shortUrl.getMapping().getDomain());
         
         return ResponseEntity.ok(response);
     }
@@ -65,9 +63,12 @@ public class UrlShortenerRestController {
             ShortUrl shortUrl = urlShortenerService.createShortUrl(
                     request.getUrl(), request.getAlias(), request.getExpiresAt(), principal.getName());
             return Map.of(
-                    "originalUrl", shortUrl.getOriginalUrl(),
-                    "shortUrl", baseUrl + "/" + shortUrl.getShortCode(),
-                    "shortCode", shortUrl.getShortCode());
+                    "originalUrl", shortUrl.getMapping().getOriginalUrl(),
+                    "shortUrl", baseUrl + "/" + publicCode(shortUrl),
+                    "shortCode", publicCode(shortUrl),
+                    "status", shortUrl.getStatus(),
+                    "alias", alias(shortUrl),
+                    "domain", shortUrl.getMapping().getDomain());
         }).collect(Collectors.toList());
     }
 
@@ -75,11 +76,14 @@ public class UrlShortenerRestController {
     public Map<String, String> stats(@PathVariable String shortCode, Principal principal) {
         ShortUrl shortUrl = urlShortenerService.findOwnedByCode(shortCode, principal.getName());
         return Map.of(
-                "shortCode", shortUrl.getShortCode(),
-                "originalUrl", shortUrl.getOriginalUrl(),
-                "clickCount", String.valueOf(shortUrl.getClickCount()),
+                "shortCode", publicCode(shortUrl),
+                "originalUrl", shortUrl.getMapping().getOriginalUrl(),
+                "clickCount", String.valueOf(clickCount(shortUrl)),
                 "createdAt", shortUrl.getCreatedAt().toString(),
-                "expiresAt", shortUrl.getExpiresAt() == null ? "" : shortUrl.getExpiresAt().toString());
+                "expiresAt", shortUrl.getExpiresAt() == null ? "" : shortUrl.getExpiresAt().toString(),
+                "status", shortUrl.getStatus(),
+                "alias", alias(shortUrl),
+                "domain", shortUrl.getMapping().getDomain());
     }
 
     @GetMapping("/links")
@@ -88,28 +92,48 @@ public class UrlShortenerRestController {
         return urlShortenerService.findOwnedLinks(principal.getName()).stream()
                 .map(shortUrl -> {
                     Map<String, String> link = new HashMap<>();
-                    link.put("shortCode", shortUrl.getShortCode());
-                    link.put("shortUrl", baseUrl + "/" + shortUrl.getShortCode());
-                    link.put("originalUrl", shortUrl.getOriginalUrl());
-                    link.put("clickCount", String.valueOf(shortUrl.getClickCount()));
+                    link.put("shortCode", publicCode(shortUrl));
+                    link.put("shortUrl", baseUrl + "/" + publicCode(shortUrl));
+                    link.put("originalUrl", shortUrl.getMapping().getOriginalUrl());
+                    link.put("clickCount", String.valueOf(clickCount(shortUrl)));
                     link.put("createdAt", shortUrl.getCreatedAt().toString());
                     link.put("expiresAt", shortUrl.getExpiresAt() == null ? "" : shortUrl.getExpiresAt().toString());
-                    link.put("lastClickedAt", shortUrl.getLastClickedAt() == null ? "" : shortUrl.getLastClickedAt().toString());
+                    link.put("lastClickedAt", lastClickedAt(shortUrl));
+                    link.put("status", shortUrl.getStatus());
+                    link.put("alias", alias(shortUrl));
+                    link.put("domain", shortUrl.getMapping().getDomain());
                     return link;
                 })
                 .toList();
     }
 
-    @GetMapping(value = "/links/{shortCode}/qr", produces = MediaType.IMAGE_PNG_VALUE)
-    public byte[] qrCode(@PathVariable String shortCode, HttpServletRequest httpRequest) throws Exception {
-        ShortUrl shortUrl = urlShortenerService.findByCode(shortCode);
-        String baseUrl = httpRequest.getRequestURL().toString()
-                .replace(httpRequest.getRequestURI(), "");
-        BitMatrix matrix = new MultiFormatWriter().encode(
-                baseUrl + "/" + shortUrl.getShortCode(),
-                BarcodeFormat.QR_CODE, 320, 320);
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(matrix, "PNG", output);
-        return output.toByteArray();
+    @DeleteMapping("/links/{shortCode}")
+    public ResponseEntity<Void> deleteLink(@PathVariable String shortCode, Principal principal) {
+        urlShortenerService.deleteOwnedLink(shortCode, principal.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    private String publicCode(ShortUrl shortUrl) {
+        return shortUrl.getCustomAlias() == null
+        ? shortUrl.getShortCode()
+        : shortUrl.getCustomAlias().getAliasText();
+    }
+
+    private String alias(ShortUrl shortUrl) {
+        return shortUrl.getCustomAlias() == null
+                ? ""
+                : shortUrl.getCustomAlias().getAliasText();
+    }
+
+    private int clickCount(ShortUrl shortUrl) {
+        return shortUrl.getClickEvents().size();
+    }
+
+    private String lastClickedAt(ShortUrl shortUrl) {
+        return shortUrl.getClickEvents().stream()
+                .map(click -> click.getTimestamp())
+                .max(java.util.Comparator.naturalOrder())
+                .map(Object::toString)
+                .orElse("");
     }
 }

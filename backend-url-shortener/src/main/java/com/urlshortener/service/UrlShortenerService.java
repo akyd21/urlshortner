@@ -4,6 +4,10 @@ import com.urlshortener.entity.ShortUrl;
 import com.urlshortener.entity.User;
 import com.urlshortener.repository.ShortUrlRepository;
 import com.urlshortener.repository.UserRepository;
+import com.urlshortener.repository.CustomAliasRepository;
+import com.urlshortener.entity.ClickEvent;
+import com.urlshortener.entity.CustomAlias;
+import com.urlshortener.entity.UrlMapping;
 import com.urlshortener.util.ShortCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,14 +24,16 @@ public class UrlShortenerService {
     private final ShortUrlRepository shortUrlRepository;
     private final ShortCodeGenerator shortCodeGenerator;
     private final UserRepository userRepository;
+    private final CustomAliasRepository customAliasRepository;
 
     @Transactional
     public ShortUrl createShortUrl(String originalUrl, String alias, LocalDateTime expiresAt, String email) {
         User owner = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user was not found."));
-        List<ShortUrl> existingUrls = shortUrlRepository.findByOriginalUrl(originalUrl);
+        List<ShortUrl> existingUrls = shortUrlRepository.findByOwnerEmailIgnoreCaseOrderByCreatedAtDesc(email);
         Optional<ShortUrl> existingUrl = existingUrls.stream()
-                .filter(link -> link.getOwner() != null && link.getOwner().getId().equals(owner.getId()))
+                .filter(link -> link.getMapping() != null
+                        && link.getMapping().getOriginalUrl().equals(originalUrl))
                 .findFirst();
         if (existingUrl.isPresent() && (alias == null || alias.isBlank())) {
             return existingUrl.get();
@@ -35,10 +41,11 @@ public class UrlShortenerService {
 
         String shortCode;
         if (alias != null && !alias.isBlank()) {
-            shortCode = alias;
-            if (shortUrlRepository.existsByShortCode(shortCode)) {
+            if (customAliasRepository.existsByAliasTextIgnoreCase(alias)
+                    || shortUrlRepository.existsByShortCode(alias)) {
                 throw new IllegalArgumentException("That alias is already in use.");
             }
+            shortCode = shortCodeGenerator.generateCode();
         } else {
             int attempts = 0;
             do {
@@ -51,34 +58,54 @@ public class UrlShortenerService {
         }
 
         ShortUrl newUrl = ShortUrl.builder()
-                .originalUrl(originalUrl)
                 .shortCode(shortCode)
-                .expiresAt(expiresAt)
+                .expiresAt(expiresAt != null ? expiresAt : LocalDateTime.now().plusMonths(3))
                 .owner(owner)
                 .build();
 
+        String domain = originalUrl;
+        try {
+            domain = java.net.URI.create(originalUrl).getHost();
+        } catch (IllegalArgumentException ignored) {
+            // The request validator has already checked the URL format.
+        }
+        UrlMapping mapping = new UrlMapping(newUrl, originalUrl, domain);
+        newUrl.setMapping(mapping);
+        if (alias != null && !alias.isBlank()) {
+            CustomAlias customAlias = new CustomAlias(newUrl, alias);
+            newUrl.setCustomAlias(customAlias);
+        }
         return shortUrlRepository.save(newUrl);
     }
 
     @Transactional
-    public Optional<ShortUrl> getOriginalUrl(String shortCode) {
+    public Optional<ShortUrl> getOriginalUrl(String shortCode, String device, String location) {
         Optional<ShortUrl> result = shortUrlRepository.findByShortCode(shortCode);
+        if (result.isEmpty()) {
+            result = customAliasRepository.findByAliasTextIgnoreCaseAndActiveTrue(shortCode)
+                    .map(CustomAlias::getShortUrl);
+        }
         if (result.isEmpty()) {
             return result;
         }
         ShortUrl shortUrl = result.get();
-        if (shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (!"ACTIVE".equalsIgnoreCase(shortUrl.getStatus())
+                || shortUrl.getMapping() == null
+                || !shortUrl.getMapping().isActive()
+                || (shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(LocalDateTime.now()))) {
             return Optional.empty();
         }
-        shortUrl.setClickCount(shortUrl.getClickCount() + 1);
-        shortUrl.setLastClickedAt(LocalDateTime.now());
+        shortUrl.getClickEvents().add(new ClickEvent(shortUrl, device, location));
         shortUrlRepository.save(shortUrl);
         return Optional.of(shortUrl);
     }
 
+    public Optional<ShortUrl> getOriginalUrl(String shortCode) {
+        return getOriginalUrl(shortCode, null, null);
+    }
+
     public ShortUrl findOwnedByCode(String shortCode, String email) {
-        ShortUrl shortUrl = shortUrlRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new IllegalArgumentException("Short URL not found."));
+        ShortUrl shortUrl = findByCode(shortCode);
         if (shortUrl.getOwner() == null || !shortUrl.getOwner().getEmail().equalsIgnoreCase(email)) {
             throw new IllegalArgumentException("You do not have access to this link.");
         }
@@ -87,7 +114,15 @@ public class UrlShortenerService {
 
     public ShortUrl findByCode(String shortCode) {
         return shortUrlRepository.findByShortCode(shortCode)
+                .or(() -> customAliasRepository.findByAliasTextIgnoreCaseAndActiveTrue(shortCode)
+                        .map(CustomAlias::getShortUrl))
                 .orElseThrow(() -> new IllegalArgumentException("Short URL not found."));
+    }
+
+    @Transactional
+    public void deleteOwnedLink(String shortCode, String email) {
+        ShortUrl shortUrl = findOwnedByCode(shortCode, email);
+        shortUrlRepository.delete(shortUrl);
     }
 
     @Transactional(readOnly = true)
